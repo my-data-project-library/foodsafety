@@ -1,0 +1,21 @@
+let
+    源 = Folder.Files("D:\食品安全数据源"),
+    筛选的隐藏文件1 = Table.SelectRows(源, each [Attributes]?[Hidden]? <> true),
+    调用自定义函数1 = Table.AddColumn(筛选的隐藏文件1, "转换文件", each 转换文件([Content])),
+    重命名的列1 = Table.RenameColumns(调用自定义函数1, {"Name", "Source.Name"}),
+    删除的其他列1 = Table.SelectColumns(重命名的列1, {"Source.Name", "转换文件"}),
+    扩展的表格列1 = Table.ExpandTableColumn(删除的其他列1, "转换文件", Table.ColumnNames(转换文件(示例文件))),
+    更改的类型 = Table.TransformColumnTypes(扩展的表格列1,{{"Source.Name", type text}, {"附件10", type any}, {"Column2", type text}, {"Column3", type text}, {"Column4", type text}, {"Column5", type text}, {"Column6", type text}, {"Column7", type text}, {"Column8", type text}, {"Column9", type any}, {"Column10", type text}, {"Column11", type text}, {"Column12", type any}, {"Column13", type text}, {"Column14", type text}, {"Column15", type text}, {"Column16", type text}, {"Column17", type text}}),
+    删除的列 = Table.RemoveColumns(更改的类型,{"Source.Name", "附件10", "Column14", "Column15", "Column16", "Column17"}),
+    筛选的行 = Table.SelectRows(删除的列, each ([Column2] <> null)),
+    提升的标题 = Table.PromoteHeaders(筛选的行, [PromoteAllScalars=true]),
+    更改的类型1 = Table.TransformColumnTypes(提升的标题,{{"标称生产企业#(lf)名称", type text}, {"标称生产企业#(lf)地址", type text}, {"被抽样单位#(lf)名称", type text}, {"被抽样单位#(lf)地址", type text}, {"样品名称", type text}, {"规格型号", type text}, {"商标", type text}, {"生产日期", type any}, {"保质期", type text}, {"不合格项目", type text}, {"检验值", type any}, {"标准值", type text}}),
+    筛选的行1 = Table.SelectRows(更改的类型1, each ([#"标称生产企业#(lf)名称"] <> "标称生产企业#(lf)名称")),
+    清洗标题 = Table.TransformColumnNames(筛选的行1,each Text.Remove(_,"#(lf)")),
+    添加超标程度 = Table.AddColumn(清洗标题,"超标程度",each try if Text.Contains([检验值],"CFU") and List.Count(List.Transform(Text.Split([检验值],"；"),each Expression.Evaluate(Text.Replace(Text.BeforeDelimiter(_,"C"),"×","*"))))=5 then "五法另算" else if Text.Contains([检验值],"未检出") then "含量不足" else if Text.Contains([标准值],"不得使用") or (Number.From(Text.Start([检验值],Text.PositionOfAny([检验值],{"a".."z","A".."Z","μ"})))-Number.From(Text.Middle([标准值],1,Text.PositionOfAny([标准值],{"a".."z","A".."Z","µ"})-1)))/Number.From(Text.Middle([标准值],1,Text.PositionOfAny([标准值],{"a".."z","A".."Z","µ"})-1))>1 then "严重超标" else if (Number.From(Text.Start([检验值],Text.PositionOfAny([检验值],{"a".."z","A".."Z","μ"})))-Number.From(Text.Middle([标准值],1,Text.PositionOfAny([标准值],{"a".."z","A".."Z","µ"})-1)))/Number.From(Text.Middle([标准值],1,Text.PositionOfAny([标准值],{"a".."z","A".."Z","µ"})-1))>0.5 then "中度超标" else "轻度超标" otherwise "暂不考虑"),
+    添加标称省份 = Table.AddColumn(添加超标程度,"标称地址",each if Text.Contains([标称生产企业地址],"疆") then "新疆" else if Text.Contains([标称生产企业地址],"宁夏") then "宁夏" else if Text.Contains([标称生产企业地址],"内蒙") then "内蒙" else if Text.Contains([标称生产企业地址],"西藏") then "西藏" else if Text.Contains([标称生产企业地址],"广西") then "广西" else if Text.Contains([标称生产企业地址],"北京") then "北京" else if Text.Contains([标称生产企业地址],"天津") then "天津" else if Text.Contains([标称生产企业地址],"上海") then "上海" else if Text.Contains([标称生产企业地址],"重庆") then "重庆" else Text.End(Text.BeforeDelimiter([标称生产企业地址],"省"),2)),
+    添加抽样省份 = Table.AddColumn(添加标称省份,"抽样地址",each if Text.Contains([被抽样单位地址],"疆") then "新疆" else if Text.Contains([被抽样单位地址],"宁夏") then "宁夏" else if Text.Contains([被抽样单位地址],"内蒙") then "内蒙" else if Text.Contains([被抽样单位地址],"西藏") then "西藏" else if Text.Contains([被抽样单位地址],"广西") then "广西" else if Text.Contains([被抽样单位地址],"北京") then "北京" else if Text.Contains([被抽样单位地址],"天津") then "天津" else if Text.Contains([被抽样单位地址],"上海") then "上海" else if Text.Contains([被抽样单位地址],"重庆") then "重庆" else Text.End(Text.BeforeDelimiter([被抽样单位地址],"省"),2)),
+    是否本地销售 = Table.AddColumn(添加抽样省份,"是否本地",each if [标称地址]=[抽样地址] then "是" else "否"),
+    最终品 = Table.AddColumn(是否本地销售,"进一步",each if Text.Contains([超标程度],"五") then if List.Count(List.Select(List.Transform(Text.Split([检验值],"；"),each Expression.Evaluate(Text.Replace(Text.BeforeDelimiter(_,"C"),"×","*"))),(x)=> x>Number.From(Text.BetweenDelimiters([标准值],"=","C",3,0))))>=1 or List.Count(List.Select(List.Transform(Text.Split([检验值],"；"),each Expression.Evaluate(Text.Replace(Text.BeforeDelimiter(_,"C"),"×","*"))),(y)=> y>Number.From(Text.BetweenDelimiters([标准值],"=","C",2,0))))>2 then "严重超标" else "轻度超标"  else [超标程度])
+in
+    最终品
