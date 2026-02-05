@@ -31,12 +31,15 @@
 
 ## 📈 关键图表
 ![不同程度占比](charts/severity_distribution.png)
+
 *严重超标占比极高*
 
 ![不合格项目TOP5](charts/top5_issues.png)
+
 *霉菌残留量是最突出问题*
 
 ![不合格项目随月份变化](charts/vary_with_the_month.png)
+
 *上半年不合格数量显著高于下半年*
 ## 关键代码
 添加超标程度 = Table.AddColumn(清洗标题,"超标程度",each try if Text.Contains([检验值],"CFU") and List.Count(List.Transform(Text.Split([检验值],"；"),each Expression.Evaluate(Text.Replace(Text.BeforeDelimiter(_,"C"),"×","*"))))=5 then "五法另算" else if Text.Contains([检验值],"未检出") then "含量不足" else if Text.Contains([标准值],"不得使用") or (Number.From(Text.Start([检验值],Text.PositionOfAny([检验值],{"a".."z","A".."Z","μ"})))-Number.From(Text.Middle([标准值],1,Text.PositionOfAny([标准值],{"a".."z","A".."Z","µ"})-1)))/Number.From(Text.Middle([标准值],1,Text.PositionOfAny([标准值],{"a".."z","A".."Z","µ"})-1))>1 then "严重超标" else if (Number.From(Text.Start([检验值],Text.PositionOfAny([检验值],{"a".."z","A".."Z","μ"})))-Number.From(Text.Middle([标准值],1,Text.PositionOfAny([标准值],{"a".."z","A".."Z","µ"})-1)))/Number.From(Text.Middle([标准值],1,Text.PositionOfAny([标准值],{"a".."z","A".."Z","µ"})-1))>0.5 then "中度超标" else "轻度超标" otherwise "暂不考虑")
