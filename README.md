@@ -36,7 +36,7 @@
 
 ![不合格项目TOP5](charts/top5_issues.png)
 
-*霉菌残留量是最突出问题*
+*霉菌残留量是最突出问题（考虑危害以及次数）*
 
 ![不合格项目随月份变化](charts/vary_with_the_month.png)
 
